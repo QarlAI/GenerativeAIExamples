@@ -128,8 +128,6 @@ class NvidiaAPICatalog(BaseExample):
         """
 
         logger.info("Using rag to generate response from document")
-        # WAR: Disable chat history (UI consistency).
-        chat_history = []
         system_message = [("system", prompts.get("rag_template", ""))]
         conversation_history = [(msg.role, msg.content) for msg in chat_history]
         user_input = [("user", "{input}")]
@@ -166,19 +164,18 @@ class NvidiaAPICatalog(BaseExample):
                     retriever = vs.as_retriever()
                     docs = retriever.get_relevant_documents(query, callbacks=[self.cb_handler])
 
-                logger.debug(f"Retrieved documents are: {docs}")
-                if not docs:
+                augmented_user_input = ""
+                if docs: 
+                    context = ""
+                    for doc in docs:
+                        context += doc.page_content + "\n\n"
+                    augmented_user_input = "Context: " + context
+                else:
                     logger.warning("Retrieval failed to get any relevant context")
-                    return iter(
-                        ["No response generated from LLM, make sure your query is relavent to the ingested document."]
-                    )
-
-                context = ""
-                for doc in docs:
-                    context += doc.page_content + "\n\n"
+                
+                augmented_user_input += "\n\nQuestion: " + query + "\n"
 
                 # Create input with context and user query to be ingested in prompt to retrieve contextal response from llm
-                augmented_user_input = "Context: " + context + "\n\nQuestion: " + query + "\n"
 
                 logger.info(
                     f"Prompt used for response generation: {prompt_template.format(input=augmented_user_input)}"
